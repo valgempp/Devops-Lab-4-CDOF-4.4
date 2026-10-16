@@ -1,29 +1,31 @@
 /**
- * Unit tests for src/utils/appInfo.js.
+ * Unit tests for src/utils/appInfo.js (DEVOPS-6).
  * No HTTP or Express involved; just pure functions.
  */
-import { describe, it, expect, vi } from 'vitest'
+import fs from 'node:fs'
+import { describe, it, expect } from 'vitest'
 import { getPackageInfo, getRuntimeInfo } from '../../src/utils/appInfo.js'
 
+const pkg = JSON.parse(
+  fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+)
+
 describe('getPackageInfo', () => {
-  it('returns name and version', () => {
-    const info = getPackageInfo()
-    expect(info).toHaveProperty('name')
-    expect(info).toHaveProperty('version')
+  it('returns name and version from package.json', () => {
+    expect(getPackageInfo()).toEqual({ name: pkg.name, version: pkg.version })
   })
 })
 
 describe('getRuntimeInfo', () => {
-  it('returns node and uptime', () => {
-    const runtime = getRuntimeInfo()
-    expect(typeof runtime.node).toBe('string')
-    expect(typeof runtime.uptime).toBe('number')
+  it('returns the running Node version', () => {
+    expect(getRuntimeInfo().node).toBe(process.version)
   })
 
-  it('calls process.uptime()', () => {
-    const spy = vi.spyOn(process, 'uptime')
-    getRuntimeInfo()
-    expect(spy).toHaveBeenCalled()
-    spy.mockRestore()
+  it('returns a non-negative uptime in seconds', () => {
+    const before = process.uptime()
+    const { uptime } = getRuntimeInfo()
+    const after = process.uptime()
+    expect(uptime).toBeGreaterThanOrEqual(before)
+    expect(uptime).toBeLessThanOrEqual(after)
   })
 })
