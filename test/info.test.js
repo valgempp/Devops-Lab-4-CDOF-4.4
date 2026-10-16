@@ -1,24 +1,39 @@
 /**
- * Integration test for GET /info.
- * Validates the merged info object from helpers.
+ * Integration tests for GET /info (DEVOPS-6).
  */
 import request from 'supertest'
+import fs from 'node:fs'
 import app from '../src/app.js'
 import { describe, it, expect } from 'vitest'
 
+const pkg = JSON.parse(
+  fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')
+)
+
 describe('GET /info', () => {
-  it('returns app info', async () => {
+  it('returns HTTP 200 with a JSON body', async () => {
     const res = await request(app).get('/info')
     expect(res.status).toBe(200)
-    expect(typeof res.body.name).toBe('string')
-    expect(typeof res.body.version).toBe('string')
-    expect(typeof res.body.node).toBe('string')
-    expect(typeof res.body.uptime).toBe('number')
+    expect(res.headers['content-type']).toMatch(/application\/json/)
   })
 
-  it('has plausible node version & non-negative uptime', async () => {
+  it('returns name and version from package.json', async () => {
     const res = await request(app).get('/info')
-    expect(res.body.node).toMatch(/^v\d+\.\d+\.\d+/)
-    expect(res.body.uptime).toBeGreaterThanOrEqual(0)
+    expect(res.body.name).toBe(pkg.name)
+    expect(res.body.version).toBe(pkg.version)
+  })
+
+  it('returns the running Node version', async () => {
+    const res = await request(app).get('/info')
+    expect(res.body.node).toBe(process.version)
+  })
+
+  it('returns a non-negative uptime in seconds', async () => {
+    const before = process.uptime()
+    const res = await request(app).get('/info')
+    const after = process.uptime()
+    expect(typeof res.body.uptime).toBe('number')
+    expect(res.body.uptime).toBeGreaterThanOrEqual(before)
+    expect(res.body.uptime).toBeLessThanOrEqual(after)
   })
 })
